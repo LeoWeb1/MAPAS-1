@@ -123,11 +123,49 @@
     }
 
     .item span { color: #718096; font-size: 0.78rem; display: block; margin-top: 2px; }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: white;
+      border-radius: 14px;
+      padding: 30px 28px;
+      width: 100%;
+      max-width: 340px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      text-align: center;
+    }
+    .modal-box h3 { margin-bottom: 16px; color: #1a202c; }
+    .modal-box input { margin-bottom: 12px; }
+    .modal-btns { display: flex; gap: 8px; }
+    .modal-btns button { flex: 1; }
+    .btn-cancelar { background: #e2e8f0; color: #4a5568; }
+    .btn-cancelar:hover { background: #cbd5e0; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="logo"><span>🗺️</span></div>
+  <!-- Modal contraseña -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box">
+      <h3>🔒 Ingresa la contraseña</h3>
+      <input type="password" id="inputClave" placeholder="Contraseña" />
+      <div class="modal-btns">
+        <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+        <button onclick="confirmarClave()">Confirmar</button>
+      </div>
+      <div id="msgModal" style="margin-top:10px;font-size:0.85rem;color:#9b2c2c;"></div>
+    </div>
+  </div>
+
+  <div class="card">    <div class="logo"><span>🗺️</span></div>
     <h1>Registro de Mapas</h1>
     <p class="sub">Ingresa tu nombre y pega el enlace de tu mapa de Google Maps</p>
 
@@ -216,9 +254,36 @@
       lista.prepend(div);
     }
 
-    async function separar() {
-      if (!confirm("¿Iniciar nueva sesión? Los siguientes mapas irán en un grupo separado.")) return;
-      
+    let accionPendiente = null;
+
+    function pedirClave(accion) {
+      accionPendiente = accion;
+      document.getElementById("inputClave").value = "";
+      document.getElementById("msgModal").textContent = "";
+      document.getElementById("modalOverlay").classList.add("active");
+      setTimeout(() => document.getElementById("inputClave").focus(), 100);
+    }
+
+    function cerrarModal() {
+      document.getElementById("modalOverlay").classList.remove("active");
+      accionPendiente = null;
+    }
+
+    async function confirmarClave() {
+      const clave = document.getElementById("inputClave").value;
+      if (clave !== "Touka123*") {
+        document.getElementById("msgModal").textContent = "Contraseña incorrecta.";
+        return;
+      }
+      cerrarModal();
+      if (accionPendiente === "separar") await ejecutarSeparar();
+      if (accionPendiente === "limpiar") await ejecutarLimpiar();
+    }
+
+    function separar() { pedirClave("separar"); }
+    function limpiar() { pedirClave("limpiar"); }
+
+    async function ejecutarSeparar() {
       try {
         const res = await fetch("/separar", { method: "POST" });
         const data = await res.json();
@@ -228,9 +293,7 @@
       }
     }
 
-    async function limpiar() {
-      if (!confirm("¿ELIMINAR TODOS los datos del Excel? Esta acción no se puede deshacer.")) return;
-      
+    async function ejecutarLimpiar() {
       try {
         const res = await fetch("/limpiar", { method: "POST" });
         const data = await res.json();
@@ -242,9 +305,25 @@
       }
     }
 
+    async function separar_old() {
+      if (!confirm("¿Iniciar nueva sesión? Los siguientes mapas irán en un grupo separado.")) return;
+      await ejecutarSeparar();
+    }
+
+    async function limpiar_old() {
+      if (!confirm("¿ELIMINAR TODOS los datos del Excel? Esta acción no se puede deshacer.")) return;
+      await ejecutarLimpiar();
+    }
+
     // Enviar con Enter
     document.addEventListener("keydown", e => {
-      if (e.key === "Enter") enviar();
+      if (e.key === "Enter") {
+        if (document.getElementById("modalOverlay").classList.contains("active")) {
+          confirmarClave();
+        } else {
+          enviar();
+        }
+      }
     });
   </script>
 </body>
